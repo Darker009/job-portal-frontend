@@ -1,24 +1,50 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { useNavigate } from "react-router-dom";
 
 const Navbar = () => {
-  const { user, logout } = useAuth(); // Access user and logout function
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const navbarRef = useRef(null); // Ref for the navbar
 
+  // Handle logout
   const handleLogout = () => {
-    logout(); // Call the logout function
-    navigate("/login"); // Redirect to the login page
+    logout();
+    navigate("/login");
+    closeNavbar();
   };
 
+  // Function to close navbar
+  const closeNavbar = () => {
+    const navbarToggler = document.querySelector(".navbar-toggler");
+    const navbarCollapse = document.querySelector(".navbar-collapse");
+    if (navbarCollapse?.classList.contains("show")) {
+      navbarToggler?.click(); // Close the navbar if it's open
+    }
+  };
+
+  // Close navbar when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (navbarRef.current && !navbarRef.current.contains(event.target)) {
+        closeNavbar();
+      }
+    };
+
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
+
   return (
-    <nav className="navbar navbar-expand-lg bg-secondary">
+    <nav className="navbar navbar-expand-lg navbar-dark bg-primary" ref={navbarRef}>
       <div className="container-fluid">
-        <a className="navbar-brand text-white" href="/">
+        <Link to="/" className="navbar-brand" onClick={closeNavbar}>
           Job Portal
-        </a>
+        </Link>
+
+        {/* Hamburger Menu Button */}
         <button
-          className="navbar-toggler text-white"
+          className="navbar-toggler"
           type="button"
           data-bs-toggle="collapse"
           data-bs-target="#navbarNav"
@@ -28,34 +54,37 @@ const Navbar = () => {
         >
           <span className="navbar-toggler-icon"></span>
         </button>
+
         <div className="collapse navbar-collapse" id="navbarNav">
-          <ul className="navbar-nav">
-            <li className="nav-item">
-              <a className="nav-link text-white active" aria-current="page" href="/">
-                Home
-              </a>
-            </li>
-            {user ? ( // Show logout button if user is logged in
-              <li className="nav-item">
-                <button className="nav-link text-white btn btn-link" onClick={handleLogout}>
+          <div className="navbar-nav ms-auto">
+            
+            {user ? (
+              <>
+                {user.role === "Candidate" && (
+                  <Link to="/candidate-dashboard" className="nav-link" onClick={closeNavbar}>
+                    Candidate Dashboard
+                  </Link>
+                )}
+                {user.role === "Employee" && (
+                  <Link to="/employee-dashboard" className="nav-link" onClick={closeNavbar}>
+                    Employee Dashboard
+                  </Link>
+                )}
+                <button className="nav-link btn btn-link text-light" onClick={handleLogout}>
                   Logout
                 </button>
-              </li>
-            ) : ( // Show login/register buttons if user is not logged in
+              </>
+            ) : (
               <>
-                <li className="nav-item">
-                  <a className="nav-link text-white" href="/login">
-                    Login
-                  </a>
-                </li>
-                <li className="nav-item">
-                  <a className="nav-link text-white" href="/register">
-                    Register
-                  </a>
-                </li>
+                <Link to="/login" className="nav-link" onClick={closeNavbar}>
+                  Login
+                </Link>
+                <Link to="/register" className="nav-link" onClick={closeNavbar}>
+                  Register
+                </Link>
               </>
             )}
-          </ul>
+          </div>
         </div>
       </div>
     </nav>

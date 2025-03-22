@@ -1,57 +1,66 @@
-import React from "react";
-import { useForm } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
-import * as yup from "yup";
-import { useAuth } from "../../context/AuthContext";
-import { useNavigate } from "react-router-dom";
-import AuthService from "../../services/AuthService";
-
-// Define validation schema
-const schema = yup.object().shape({
-  email: yup.string().email("Invalid email").required("Email is required"),
-  password: yup.string().required("Password is required"),
-});
+import React, { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext"; // Ensure the path is correct
+import "./LoginStyle.model.css";
 
 const Login = () => {
-  const { login } = useAuth();
+  const [credentials, setCredentials] = useState({ email: "", password: "" });
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm({
-    resolver: yupResolver(schema),
-  });
+  const { login } = useAuth(); // Ensure useAuth is properly defined
 
-  const onSubmit = async (data) => {
+  const handleChange = (e) => {
+    setCredentials({ ...credentials, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null); // Reset error state
+
     try {
-      const response = await AuthService.login(data);
-      login(response.user, response.token);
-      navigate("/home");
+      await login(credentials);
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (user.role === "Candidate") {
+        navigate("/candidate-dashboard");
+      } else if (user.role === "Employee") {
+        navigate("/employee-dashboard");
+
+      }
     } catch (err) {
-      console.error("Login failed:", err);
+      setError(err.message || "Invalid credentials"); // Display error message
     }
   };
 
   return (
-    <div>
+    <div className="auth-container">
       <h2>Login</h2>
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <div>
-          <label>Email:</label>
-          <input type="email" {...register("email")} />
-          {errors.email && <p style={{ color: "red" }}>{errors.email.message}</p>}
-        </div>
-        <div>
-          <label>Password:</label>
-          <input type="password" {...register("password")} />
-          {errors.password && <p style={{ color: "red" }}>{errors.password.message}</p>}
-        </div>
+      {error && <p className="error-message">{error}</p>}
+      <form className="auth-form" onSubmit={handleSubmit}>
+        <input
+          type="email"
+          name="email"
+          placeholder="Email"
+          value={credentials.email}
+          onChange={handleChange}
+          autoComplete="email"
+          required
+        />
+        <input
+          type="password"
+          name="password"
+          placeholder="Password"
+          value={credentials.password}
+          onChange={handleChange}
+          autoComplete="current-password"
+          required
+        />
         <button type="submit">Login</button>
       </form>
-      <p>
-        Don't have an account? <a href="/register">Register here</a>.
+      <p className="switch-auth">
+        Don't have an account?{" "}
+        <Link to="/register" className="link-button">Register</Link>
       </p>
+
     </div>
   );
 };

@@ -1,25 +1,58 @@
-import React, { createContext, useState, useContext } from "react";
+import React, { createContext, useState, useEffect, useContext } from "react";
+import AuthService from "../services/AuthService";
 
-// Create the AuthContext
 const AuthContext = createContext();
 
-// Define AuthProvider component
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem("token") || null);
+  const [user, setUser] = useState(AuthService.getCurrentUser());
+  const [token, setToken] = useState(AuthService.getAuthToken());
 
-  const login = (userData, authToken) => {
-    setUser(userData);
-    setToken(authToken);
-    localStorage.setItem("token", authToken);
+  // Check for an existing user on page load
+  useEffect(() => {
+    const storedToken = AuthService.getAuthToken();
+    if (storedToken) {
+      const fetchUser = async () => {
+        try {
+          const userData = AuthService.getCurrentUser();
+          if (userData) {
+            setUser(userData); // Set user data if available
+          } else {
+            logout(); // Clear invalid session if no user data is found
+          }
+        } catch (error) {
+          console.error("Error fetching user:", error);
+          logout(); // Clear invalid session on error
+        }
+      };
+      fetchUser();
+    }
+  }, []);
+
+  // Login function
+  const login = async (credentials) => {
+    try {
+      const response = await AuthService.login(credentials);
+      if (response.token) {
+        setToken(response.token); // Update token state
+        setUser(response.user); // Update user state
+        localStorage.setItem("token", response.token); // Store token in localStorage
+        localStorage.setItem("user", JSON.stringify(response.user)); // Store user data in localStorage
+      }
+      return response; // Return response for further processing
+    } catch (error) {
+      console.error("Login failed:", error);
+      throw error; // Propagate error to the calling component
+    }
   };
 
+  // Logout function
   const logout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem("token");
+    AuthService.logout(); // Clear token and user data from localStorage
+    setUser(null); // Reset user state
+    setToken(null); // Reset token state
   };
 
+  // Provide auth context values
   return (
     <AuthContext.Provider value={{ user, token, login, logout }}>
       {children}
@@ -27,5 +60,5 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-// Define useAuth hook
+// Custom hook for accessing auth context
 export const useAuth = () => useContext(AuthContext);

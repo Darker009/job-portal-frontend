@@ -48,7 +48,7 @@ const Register = () => {
         lastName: userData.lastName,
         email: userData.email,
         password: userData.password,
-        role: userData.role, // Include role in the registration payload
+        role: userData.role, 
       });
 
       // Check for errors in the response

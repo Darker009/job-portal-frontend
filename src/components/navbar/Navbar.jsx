@@ -23,7 +23,6 @@ const Navbar = () => {
     }
   };
 
-  // Close navbar when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (navbarRef.current && !navbarRef.current.contains(event.target)) {
@@ -36,7 +35,7 @@ const Navbar = () => {
   }, []);
 
   return (
-    <nav className="navbar navbar-expand-lg navbar-dark bg-primary" ref={navbarRef}>
+    <nav className="navbar navbar-expand-lg navbar-dark bg-info" ref={navbarRef}>
       <div className="container-fluid">
         <Link to="/" className="navbar-brand" onClick={closeNavbar}>
           Job Portal

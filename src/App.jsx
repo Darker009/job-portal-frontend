@@ -6,20 +6,21 @@ import Register from "./pages/auth/Register";
 import CandidateDashboard from "./components/dashboard/Candidate"; // Import CandidateDashboard
 import EmployeeDashboard from "./components/dashboard/Employee"; // Import EmployeeDashboard
 import ProtectedRoute from "./components/protectedRoute/ProtectedRoute";
+import CandidateProfile from "./pages/profile/CandidateProfile";
+import CandidateViewProfile from "./pages/profile/CandidateViewProfile";
 
 function App() {
   return (
     <>
       <Navbar />
+
       <Routes>
         {/* Default route redirects to /login */}
         <Route path="/" element={<Navigate to="/login" replace />} />
 
-        {/* Public routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* Protected routes */}
         <Route
           path="/candidate-dashboard"
           element={
@@ -27,6 +28,24 @@ function App() {
               <CandidateDashboard />
             </ProtectedRoute>
           }
+        />
+
+        <Route
+          path="/candidate-profile"
+          element={
+            <ProtectedRoute allowedRoles={["Candidate"]}>
+              <CandidateProfile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/candidate-view-profile"
+          element={
+            <ProtectedRoute allowedRoles={["Candidate"]}>
+              <CandidateViewProfile />
+            </ProtectedRoute>
+          }
+
         />
         <Route
           path="/employee-dashboard"

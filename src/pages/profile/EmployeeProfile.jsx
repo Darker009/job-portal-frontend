@@ -1,33 +1,33 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AuthService from "../../services/AuthService";
-import "./CandidateProfileView.model.css"; // Separate CSS file for profile styling
+import "./ProfileStyle.model.css";
 
-const CandidateProfile = () => {
+const EmployeeProfile = () => {
   const [userData, setUserData] = useState({
-    collegeName: "",
-    degree: "",
-    specialization: "",
+    companyName: "",
+    designation: "",
+    workExperience: "", // we'll use number input to enforce numeric values
     contactNumber: "",
-    skills: "",
     dob: "",
     address: "",
     currentLocation: "",
-    resumeFile: null,
+    expUrl: null,
   });
   const [error, setError] = useState("");
-  const [resumeName, setResumeName] = useState("No file chosen");
+  const [expDoc, setExpDoc] = useState("No file chosen");
   const navigate = useNavigate();
 
   const handleChange = (e) => {
+    // Use e.target.value directly; trim if you want
     setUserData({ ...userData, [e.target.name]: e.target.value.trim() });
   };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setUserData({ ...userData, resumeFile: file });
-      setResumeName(file.name);
+      setUserData({ ...userData, expUrl: file });
+      setExpDoc(file.name);
     }
   };
 
@@ -35,25 +35,31 @@ const CandidateProfile = () => {
     e.preventDefault();
     setError("");
 
-    // Check that all fields are provided
+    // Ensure all fields are provided
     if (
-      !userData.collegeName ||
-      !userData.degree ||
-      !userData.specialization ||
+      !userData.companyName ||
+      !userData.designation ||
+      !userData.workExperience ||
       !userData.contactNumber ||
-      !userData.skills ||
       !userData.dob ||
       !userData.address ||
-      !userData.currentLocation
+      !userData.currentLocation ||
+      !userData.expUrl
     ) {
       setError("All fields are required");
       return;
     }
-
     try {
-      const response = await AuthService.saveCandidateProfile(userData);
+      // Optionally, you could parse numeric fields before sending
+      const profileToSend = {
+        ...userData,
+        // Convert these to numbers (they will be sent as strings in FormData anyway)
+        workExperience: userData.workExperience,
+        contactNumber: userData.contactNumber,
+      };
+      const response = await AuthService.saveEmployeeProfile(profileToSend);
       console.log("Profile saved successfully", response);
-      navigate("/candidate-dashboard");
+      navigate("/employee-dashboard");
     } catch (error) {
       setError(error.message);
     }
@@ -61,48 +67,42 @@ const CandidateProfile = () => {
 
   return (
     <div className="profile-container">
-      <h2>Candidate Profile</h2>
+      <h2>Employee Profile</h2>
       <p>Update your profile details</p>
       <form onSubmit={handleSubmit} className="profile-form">
         {error && <p className="error-message">{error}</p>}
         <input
           type="text"
-          name="collegeName"
-          placeholder="College Name"
+          name="companyName"
+          placeholder="Company Name"
           onChange={handleChange}
           required
         />
         <input
           type="text"
-          name="degree"
-          placeholder="Degree"
+          name="designation"
+          placeholder="Designation"
           onChange={handleChange}
           required
         />
         <input
-          type="text"
-          name="specialization"
-          placeholder="Specialization"
+          type="number"
+          name="workExperience"
+          placeholder="Work Experience (years)"
           onChange={handleChange}
           required
         />
         <input
-          type="text"
+          type="number"
           name="contactNumber"
           placeholder="Contact Number"
           onChange={handleChange}
           required
         />
         <input
-          type="text"
-          name="skills"
-          placeholder="Skills"
-          onChange={handleChange}
-          required
-        />
-        <input
           type="date"
           name="dob"
+          placeholder="Date of Birth"
           onChange={handleChange}
           required
         />
@@ -120,18 +120,19 @@ const CandidateProfile = () => {
           onChange={handleChange}
           required
         />
+
         <div className="file-upload">
-          <label htmlFor="resumeUpload" className="upload-btn">
-            Upload Resume
+          <label htmlFor="expDocUpload" className="upload-btn">
+            Upload Doc
           </label>
           <input
             type="file"
-            id="resumeUpload"
+            id="expDocUpload"
             accept=".pdf,.doc,.docx"
             onChange={handleFileChange}
             hidden
           />
-          <span className="file-name">{resumeName}</span>
+          <span className="file-name">{expDoc}</span>
         </div>
         <button type="submit" className="save-btn">
           Save
@@ -141,4 +142,4 @@ const CandidateProfile = () => {
   );
 };
 
-export default CandidateProfile;
+export default EmployeeProfile;

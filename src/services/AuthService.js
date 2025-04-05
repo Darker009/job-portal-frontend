@@ -1,197 +1,165 @@
 import axios from "axios";
 
 const API_URL = "http://localhost:8080/api";
+const TOKEN_KEY = "token";
+const USER_KEY = "user";
 
-// Create axios instance with default configuration
 const api = axios.create({
   baseURL: API_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
-  withCredentials: true, // Include credentials for cross-origin requests
+  withCredentials: true,
 });
 
-// Request interceptor for adding auth token
+// --- AuthService placeholder used in interceptors ---
+let AuthService = null;
+
+// Request Interceptor
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem(TOKEN_KEY);
     if (token) {
-      config.headers["Authorization"] = `Bearer ${token}`;
+      config.headers.Authorization = `Bearer ${token}`;
     }
+
+    if (config.data instanceof FormData) {
+      config.headers["Content-Type"] = "multipart/form-data";
+    } else {
+      config.headers["Content-Type"] = "application/json";
+    }
+
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// Response interceptor for handling errors globally
+// Response Interceptor
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Handle unauthorized access (token expired, etc.)
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      window.location.href = "/login"; // Redirect to login
+  async (error) => {
+    const status = error.response?.status;
+    const originalRequest = error.config;
+    const message = error.response?.data?.message || error.message;
+
+    if (status === 401) {
+      if (!originalRequest._retry && error.response?.data?.shouldRefresh) {
+        originalRequest._retry = true;
+        try {
+          await AuthService.refreshToken();
+          return api(originalRequest);
+        } catch {
+          AuthService.logout();
+          window.location.href = "/login?error=session_expired";
+          return Promise.reject(error);
+        }
+      }
+      AuthService.logout();
+      window.location.href = "/login?error=unauthorized";
+    } else if (status === 403) {
+      window.location.href = "/unauthorized";
+    } else if (status === 500) {
+      console.error("Server error:", message);
     }
-    return Promise.reject(error);
+
+    return Promise.reject({
+      status,
+      message,
+      data: error.response?.data,
+    });
   }
 );
 
-const AuthService = {
-  // User endpoints
+// AuthService Definition
+AuthService = {
   register: async (userData) => {
-    try {
-      const response = await api.post("/user/register", userData);
-      return response.data;
-    } catch (err) {
-      const errorMessage =
-        err.response?.data?.message ||
-        err.message ||
-        "Registration failed. Please try again.";
-      console.error("Registration failed:", errorMessage);
-      throw new Error(errorMessage);
-    }
+    const res = await api.post("/user/register", userData);
+    return res.data;
   },
 
   login: async (credentials) => {
-    try {
-      const response = await api.post("/user/login", credentials);
-      if (response.data.token) {
-        localStorage.setItem("token", response.data.token);
-        localStorage.setItem("user", JSON.stringify(response.data.user));
-      }
-      return response.data;
-    } catch (err) {
-      const errorMessage =
-        err.response?.data?.message ||
-        err.message ||
-        "Login failed. Please check your credentials.";
-      console.error("Login failed:", errorMessage);
-      throw new Error(errorMessage);
+    const res = await api.post("/user/login", credentials);
+    const { token, user } = res.data;
+
+    if (token) {
+      localStorage.setItem(TOKEN_KEY, token);
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
     }
+
+    return res.data;
   },
 
   logout: () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    // Optionally: return api.post('/user/logout');
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    return api.post("/user/logout").catch(() => {});
   },
 
-  getAuthToken: () => localStorage.getItem("token"),
+  getAuthToken: () => localStorage.getItem(TOKEN_KEY),
 
   getCurrentUser: () => {
     try {
-      const user = localStorage.getItem("user");
+      const user = localStorage.getItem(USER_KEY);
       return user ? JSON.parse(user) : null;
-    } catch (error) {
-      console.error("Error parsing user data:", error);
+    } catch {
       return null;
     }
   },
 
-  // Candidate Profile endpoints
-  /**
-   * Save or update candidate profile.
-   * Expects profileData to include all candidate fields and optionally file inputs (handled via FormData).
-   */
+  // Candidate Profile
   saveCandidateProfile: async (profileData) => {
-    try {
-      const formData = new FormData();
-      // Append all profile data (both text and files)
-      Object.entries(profileData).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          formData.append(key, value);
-        }
-      });
-      const response = await api.post("/candidate/profile", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-      return response.data;
-    } catch (error) {
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        "Failed to update candidate profile.";
-      console.error("Error saving candidate profile:", errorMessage);
-      throw new Error(errorMessage);
-    }
+    const formData = new FormData();
+    Object.entries(profileData).forEach(([k, v]) => v && formData.append(k, v));
+    const res = await api.post("/candidate/profile", formData);
+    return res.data;
   },
 
-  /**
-   * Get candidate profile for the current user.
-   */
   getCandidateProfile: async () => {
-    try {
-      const response = await api.get("/candidate/profile");
-      return response.data;
-    } catch (error) {
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        "Failed to fetch candidate profile.";
-      console.error("Error fetching candidate profile:", errorMessage);
-      throw new Error(errorMessage);
-    }
+    const res = await api.get("/candidate/profile");
+    return res.data;
   },
 
-  /**
-   * Upload a new profile picture.
-   * Expects formData containing the "profilePicture" file.
-   */
   uploadProfilePicture: async (formData) => {
-    try {
-      const response = await api.post("/candidate/profile-picture", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-      return response.data;
-    } catch (error) {
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        "Failed to upload profile picture.";
-      console.error("Error uploading profile picture:", errorMessage);
-      throw new Error(errorMessage);
-    }
+    const res = await api.post("/candidate/profile/picture", formData);
+    return res.data;
   },
 
-  /**
-   * (Optional) Upload a resume file separately, if needed.
-   * Expects formData containing the "resumeFile" file.
-   */
   uploadResume: async (formData) => {
-    try {
-      const response = await api.post("/candidate/upload-resume", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-      return response.data;
-    } catch (error) {
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        "Failed to upload resume.";
-      console.error("Error uploading resume:", errorMessage);
-      throw new Error(errorMessage);
-    }
+    const res = await api.post("/candidate/upload-resume", formData);
+    return res.data;
   },
 
-  // Optional: Refresh token endpoint
+  // Employee Profile
+  saveEmployeeProfile: async (profileData) => {
+    const formData = new FormData();
+    Object.entries(profileData).forEach(([k, v]) => v && formData.append(k, v));
+    const res = await api.post("/employee/profile", formData);
+    return res.data;
+  },
+
+  getEmployeeProfile: async () => {
+    const res = await api.get("/employee/profile");
+    return res.data;
+  },
+
+  uploadEmployeeProfilePicture: async (formData) => {
+    const res = await api.post("/employee/profile/picture", formData);
+    return res.data;
+  },
+
+  uploadExpDoc: async (formData) => {
+    const res = await api.post("/employee/upload-resume", formData);
+    return res.data;
+  },
+
   refreshToken: async () => {
-    try {
-      const response = await api.post("/user/refresh-token");
-      if (response.data.token) {
-        localStorage.setItem("token", response.data.token);
-      }
-      return response.data;
-    } catch (error) {
-      AuthService.logout();
-      throw error;
+    const res = await api.post("/user/refresh-token");
+    if (res.data.token) {
+      localStorage.setItem(TOKEN_KEY, res.data.token);
     }
+    return res.data;
+  },
+
+  verifyRole: (requiredRole) => {
+    const user = AuthService.getCurrentUser();
+    return user?.role === requiredRole;
   },
 };
 

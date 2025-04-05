@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import AuthService from "../../services/AuthService";
 import "./ProfileStyle.model.css";
-import { FiRefreshCw, FiUser, FiCamera } from "react-icons/fi";
+import { FiRefreshCcw, FiUser, FiCamera } from "react-icons/fi";
 
-const CandidateViewProfile = () => {
+const EmployeeViewProfile = () => {
   const [profile, setProfile] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -16,27 +16,25 @@ const CandidateViewProfile = () => {
     try {
       setLoading(true);
       setError("");
-      const data = await AuthService.getCandidateProfile();
+      const data = await AuthService.getEmployeeProfile();
       console.log("Fetched profile:", data);
 
-      
       if (data.profilePicture) {
         data.profilePicture = data.profilePicture.startsWith("http")
           ? data.profilePicture
           : `${API_BASE_URL}${data.profilePicture.startsWith("/") ? "" : "/"}${data.profilePicture}`;
       }
-      // Similarly, ensure resume URL is complete if available
-      if (data.resumeUrl) {
-        data.resumeUrl = data.resumeUrl.startsWith("http")
-          ? data.resumeUrl
-          : `${API_BASE_URL}${data.resumeUrl.startsWith("/") ? "" : "/"}${data.resumeUrl}`;
+      if (data.expUrl) {
+        data.expUrl = data.expUrl.startsWith("http")
+          ? data.expUrl
+          : `${API_BASE_URL}${data.expUrl.startsWith("/") ? "" : "/"}${data.expUrl}`;
       }
 
       setProfile(data);
     } catch (err) {
       console.error("Profile fetch error:", err);
       if (retryCount < 2) {
-        setRetryCount(prev => prev + 1);
+        setRetryCount((prev) => prev + 1);
         return;
       }
       setError(err.message || "Failed to load profile. Please try again later.");
@@ -56,29 +54,27 @@ const CandidateViewProfile = () => {
   const handleProfilePictureUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
-  
+
     try {
       const formData = new FormData();
       formData.append("profilePicture", file);
-  
-      const response = await AuthService.uploadProfilePicture(formData);
+
+      const response = await AuthService.uploadEmployeeProfilePicture(formData);
       console.log("Upload response:", response);
-  
+
       const pictureUrl = response.profilePicture;
-  
+
       if (!pictureUrl) {
         throw new Error("Profile picture URL not found in response");
       }
-  
       const updatedUrl = pictureUrl.startsWith("http")
         ? pictureUrl
         : `${API_BASE_URL}${pictureUrl.startsWith("/") ? "" : "/"}${pictureUrl}`;
-  
-      setProfile(prev => ({
+
+      setProfile((prev) => ({
         ...prev,
-        profilePicture: updatedUrl
+        profilePicture: updatedUrl,
       }));
-  
       alert("Profile picture updated successfully!");
     } catch (error) {
       console.error("Profile picture upload error:", error);
@@ -87,6 +83,7 @@ const CandidateViewProfile = () => {
       event.target.value = "";
     }
   };
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -114,7 +111,7 @@ const CandidateViewProfile = () => {
         <div className="profile-title">
           <h1>My Profile</h1>
           <button className="refresh-button" onClick={fetchProfile}>
-            <FiRefreshCw />
+            <FiRefreshCcw />
             Refresh
           </button>
         </div>
@@ -139,6 +136,7 @@ const CandidateViewProfile = () => {
             <FiCamera size={18} />
           </div>
         </div>
+
         <input
           type="file"
           ref={fileInputRef}
@@ -149,11 +147,10 @@ const CandidateViewProfile = () => {
       </header>
 
       <div className="profile-details">
-        <ProfileField label="College Name" value={profile.collegeName} />
-        <ProfileField label="Degree" value={profile.degree} />
-        <ProfileField label="Specialization" value={profile.specialization} />
+        <ProfileField label="Company Name" value={profile.companyName} />
+        <ProfileField label="Designation" value={profile.designation} />
+        <ProfileField label="Work Experience" value={profile.workExperience} />
         <ProfileField label="Contact Number" value={profile.contactNumber} />
-        <ProfileField label="Skills" value={profile.skills} />
         <ProfileField
           label="Date of Birth"
           value={profile.dob ? new Date(profile.dob).toLocaleDateString() : null}
@@ -161,10 +158,10 @@ const CandidateViewProfile = () => {
         <ProfileField label="Address" value={profile.address} />
         <ProfileField label="Current Location" value={profile.currentLocation} />
         <div className="profile-field">
-          <strong>Resume:</strong>{" "}
-          {profile.resumeUrl ? (
-            <a href={profile.resumeUrl} target="_blank" rel="noopener noreferrer">
-              View Resume ↗
+          <strong>Work Doc:</strong>{" "}
+          {profile.expUrl ? (
+            <a href={profile.expUrl} target="_blank" rel="noopener noreferrer">
+              View Document ↗
             </a>
           ) : (
             <em>No resume uploaded</em>
@@ -175,6 +172,7 @@ const CandidateViewProfile = () => {
   );
 };
 
+// Define ProfileField component locally so it's available in this file
 const ProfileField = ({ label, value }) => (
   <div className="profile-field">
     <strong>{label}:</strong>{" "}
@@ -182,4 +180,4 @@ const ProfileField = ({ label, value }) => (
   </div>
 );
 
-export default CandidateViewProfile;
+export default EmployeeViewProfile;
